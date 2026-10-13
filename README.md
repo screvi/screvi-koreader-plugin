@@ -9,7 +9,7 @@ Sync your [KOReader](https://koreader.rocks) highlights and notes to [Screvi](ht
 
 ## Install
 
-1. Download `screvi-koreader.zip` from the [latest release](https://github.com/pedroaraujo74/screvi-koreader-plugin/releases/latest) and unzip it. You get a folder called `screvi.koplugin`.
+1. Download `screvi-koreader.zip` from the [latest release](https://github.com/screvi/screvi-koreader-plugin/releases/latest) and unzip it. You get a folder called `screvi.koplugin`.
 2. Connect your e-reader by USB and copy that folder into KOReader's `plugins` folder:
 
    | Device | Folder |
