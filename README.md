@@ -64,13 +64,13 @@ luajit spec/run.lua
 `./build-zip.sh` runs the tests and writes `dist/screvi-koreader.zip`, the asset attached to each release.
 
 ```
-screvi.koplugin/
-├── _meta.lua            # Plugin metadata
-├── main.lua             # Plugin logic
-└── screvi_exporter.lua  # Screvi target for the Export highlights menu
-spec/
-└── run.lua     # Test harness
+_meta.lua            # Plugin metadata
+main.lua             # Plugin logic
+screvi_exporter.lua  # Screvi target for the Export highlights menu
+spec/run.lua         # Test harness
 ```
+
+The plugin files sit at the repository root, so the repository can be used directly as a `screvi.koplugin` folder (as in [koreader/contrib](https://github.com/koreader/contrib)).
 
 ## License
 

@@ -1,6 +1,6 @@
 -- Runs the plugin's real main.lua against stubbed KOReader modules.
 -- Usage (from koreader-plugin/): luajit spec/run.lua
-package.path = "screvi.koplugin/?.lua;" .. package.path
+package.path = "./?.lua;" .. package.path
 
 local failures, passed = 0, 0
 local function check(cond, msg)
@@ -138,7 +138,7 @@ stub("base", {
     end,
 })
 
-local Screvi = dofile("screvi.koplugin/main.lua")
+local Screvi = dofile("main.lua")
 
 local function newPlugin(ui)
     local p = setmetatable({ ui = ui }, { __index = Screvi })
