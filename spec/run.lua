@@ -118,6 +118,26 @@ stub("socket.http", { request = function(req)
     return 1, r[1], {}, "HTTP " .. r[1]
 end })
 
+-- KOReader's Provider registry and the Exporter plugin's base class.
+local providers = {}
+stub("provider", { register = function(_, feature, name, impl) providers[feature .. "/" .. name] = impl; return true end })
+local export_requests = {}
+stub("base", {
+    settings_key = "exporter",
+    new = function(self, o)
+        o = o or {}
+        o.settings = {}
+        setmetatable(o, { __index = self })
+        return o
+    end,
+    isEnabled = function(self) return self.settings.enabled and self:isReadyToExport() end,
+    toggleEnabled = function(self) if self:isReadyToExport() then self.settings.enabled = not self.settings.enabled end end,
+    makeJsonRequest = function(_, url, method, body, headers)
+        table.insert(export_requests, { url = url, method = method, body = body, headers = headers })
+        return {}
+    end,
+})
+
 local Screvi = dofile("screvi.koplugin/main.lua")
 
 local function newPlugin(ui)
@@ -315,6 +335,53 @@ check(shown[#shown].text:find("Too many attempts"), "429 message")
 http_responses = { { nil } }
 pp:connect()
 check(shown[#shown].text:find("Couldn't reach Screvi"), "offline start message")
+
+-- ---------------------------------------------------------------- export highlights target
+local target = providers["exporter/screvi"]
+check(target ~= nil, "registered with the exporter at load")
+eq(target.is_remote, true, "remote target")
+settings_store.api_key = nil
+eq(target:isReadyToExport(), false, "not ready without a key")
+settings_store.api_key = "sk_live_paired"
+eq(target:isReadyToExport(), true, "ready with the paired key")
+target:getMenuTable().callback()
+eq(target:isEnabled(), true, "menu toggles it on")
+
+local booknotes = {
+    title = "Meditations", author = "Marcus Aurelius\nGregory Hays",
+    { { text = "  You could leave life right now. ", note = " memento ", page = 20, chapter = "Book Two", time = 1709283900 } },
+    { { text = "", page = 21, image = { png = "x" } } },
+}
+export_requests = {}
+eq(target:export({ booknotes, { title = "Images only", { { text = "", image = {} } } } }), true, "export succeeds")
+eq(#export_requests, 1, "one request")
+local req = export_requests[1]
+eq(req.headers["X-API-Key"], "sk_live_paired", "uses the paired key")
+check(req.url:find("/api/extension/import$"), "import url")
+eq(req.body.type, "koreader", "import type")
+eq(#req.body.data, 1, "image-only book skipped")
+local src = req.body.data[1]
+eq(src.author, "Marcus Aurelius, Gregory Hays", "authors joined")
+eq(#src.highlights, 1, "image clipping skipped")
+eq(src.highlights[1].content, "You could leave life right now.", "text trimmed")
+eq(src.highlights[1].note, "memento", "note trimmed")
+eq(src.highlights[1].location, "20", "page as location")
+eq(src.highlights[1].metadata.chapter, "Book Two", "chapter kept")
+eq(src.highlights[1].date, os.date("!%Y-%m-%dT%H:%M:%SZ", 1709283900), "date in UTC")
+
+-- big exports are split into batches of at most 500 highlights
+local big = {}
+for b = 1, 3 do
+    local chapter = {}
+    for i = 1, 300 do chapter[i] = { text = "h" .. b .. "-" .. i, page = i } end
+    big[b] = { title = "Book " .. b, author = "A", chapter }
+end
+export_requests = {}
+target:export(big)
+eq(#export_requests, 3, "300+300 would exceed 500, so one book per request")
+
+settings_store.api_key = nil
+eq(target:export({ booknotes }), false, "no key, no export")
 
 print(string.format("%d passed, %d failed", passed, failures))
 os.exit(failures == 0 and 0 or 1)

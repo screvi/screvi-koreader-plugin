@@ -6,6 +6,7 @@ Sync your [KOReader](https://koreader.rocks) highlights and notes to [Screvi](ht
 - Sends each highlight's text, note, page, chapter and date, with the book's title, authors and ISBN.
 - Only sends what's new. Screvi also skips highlights it already has, so re-sending is always safe.
 - Optional auto-sync when you close a book (only if Wi-Fi is already on).
+- Also shows up in KOReader's built-in Export highlights menu.
 
 ## Install
 
@@ -40,6 +41,10 @@ Each device gets its own key, listed in Screvi under **Settings → API**. Revok
 
 Both sync actions are also in KOReader's gesture and shortcut manager, under "Screvi".
 
+### Export highlights
+
+The plugin also adds **Screvi** to KOReader's built-in **Export highlights** menu (Tools → Export highlights → Choose formats and services), next to the other export targets. It uses the same connection, so there is nothing else to set up.
+
 ## How it works
 
 - Reads highlights from KOReader's annotations (2024.05 and later) and from the older `highlight`/`bookmarks` sidecar format. Page bookmarks are not highlights and are left out.
@@ -60,8 +65,9 @@ luajit spec/run.lua
 
 ```
 screvi.koplugin/
-├── _meta.lua   # Plugin metadata
-└── main.lua    # Plugin logic
+├── _meta.lua            # Plugin metadata
+├── main.lua             # Plugin logic
+└── screvi_exporter.lua  # Screvi target for the Export highlights menu
 spec/
 └── run.lua     # Test harness
 ```

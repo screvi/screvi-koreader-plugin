@@ -21,7 +21,7 @@ local Screvi = WidgetContainer:extend{
 
 local API_URL = "https://api.screvi.com/api/extension/import"
 local PAIRING_URL = "https://api.screvi.com/api/device-pairing"
-local USER_AGENT = "screvi-koreader/1.1"
+local USER_AGENT = "screvi-koreader/1.2"
 local SETTINGS_FILE = "screvi_settings.lua"
 local IMPORT_TYPE = "koreader"
 -- The server skips sources without an author, so never send an empty one.
@@ -42,6 +42,8 @@ function Screvi:init()
     for hash in pairs(self.synced_hashes) do
         if #hash ~= 32 then self.synced_hashes[hash] = nil end
     end
+    Screvi.instance = self
+    Screvi.registerExporter()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 end
@@ -800,5 +802,49 @@ function Screvi:upload(sources, silent)
     end
     UIManager:show(InfoMessage:new{ text = msg, timeout = failed and nil or 3 })
 end
+
+-- ---------------------------------------------------------------------------
+-- Export highlights: offer Screvi as a target in KOReader's built-in exporter
+-- ---------------------------------------------------------------------------
+
+--- The key saved by Connect to Screvi, read fresh so every UI sees the latest one.
+function Screvi.getApiKey()
+    local key = LuaSettings:open(DataStorage:getSettingsDir() .. "/" .. SETTINGS_FILE):readSetting("api_key")
+    return type(key) == "string" and key ~= "" and key or nil
+end
+
+--- Register with the Exporter plugin through KOReader's Provider API. The exporter
+--- collects providers when it starts, so this runs as soon as this module loads
+--- (all plugin modules load before any plugin starts) and again from init.
+function Screvi.registerExporter()
+    if Screvi.exporter_registered then return true end
+    local ok_provider, Provider = pcall(require, "provider")
+    local ok_base, Base = pcall(require, "base")
+    -- "base" is the Exporter plugin's module; make sure that's what we got.
+    local is_exporter_base = ok_base and type(Base) == "table"
+        and type(Base.new) == "function" and type(Base.makeJsonRequest) == "function"
+    if not (ok_provider and is_exporter_base) then
+        logger.dbg("Screvi: export target not registered yet")
+        return false
+    end
+    local ok, target = pcall(function()
+        return require("screvi_exporter").build(Base, {
+            API_URL = API_URL,
+            getApiKey = Screvi.getApiKey,
+            connect = function()
+                if Screvi.instance then Screvi.instance:connect() end
+            end,
+        })
+    end)
+    if not ok then
+        logger.warn("Screvi: could not add the export target:", target)
+        return false
+    end
+    Screvi.exporter_registered = Provider:register("exporter", "screvi", target)
+    logger.dbg("Screvi: export target registered:", Screvi.exporter_registered)
+    return Screvi.exporter_registered
+end
+
+Screvi.registerExporter()
 
 return Screvi
